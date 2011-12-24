@@ -19,13 +19,21 @@ assert str is not bytes
 
 import sys, argparse, configparser, traceback
 import getpass
+import tornado.ioloop
 import tornado.stack_context
+from . import fail_email_extractor
 
 class UserError(Exception):
     pass
 
 class ProgError(Exception):
     pass
+
+def on_final(exit_code=None):
+    tornado.ioloop.IOLoop.instance().stop()
+    
+    if exit_code is not None:
+        exit(exit_code)
 
 def on_error(e_type, e_value, e_traceback):
     try:
@@ -97,4 +105,7 @@ def main():
         else:
             out = sys.stdout
         
-        print((server, login, password, out)) # TEST
+        fail_email_extractor(server, login, password, out,
+                callback=on_final)
+    
+    tornado.ioloop.IOLoop.instance().start()
