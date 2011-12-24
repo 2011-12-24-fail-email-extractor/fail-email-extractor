@@ -18,6 +18,7 @@
 assert str is not bytes
 
 import sys, argparse, configparser, traceback
+import getpass
 import tornado.stack_context
 
 class UserError(Exception):
@@ -45,7 +46,17 @@ def main():
                 description='Utility for extracting fail email-addresses')
         
         parser.add_argument(
-            'cfg',
+            '--server',
+            help='Receive mail server',
+        )
+        
+        parser.add_argument(
+            '--login',
+            help='Auth login for receive mail server',
+        )
+        
+        parser.add_argument(
+            '--cfg',
             help='Config file',
         )
         
@@ -56,18 +67,21 @@ def main():
         
         args = parser.parse_args()
         
-        config = configparser.ConfigParser(
-                interpolation=configparser.ExtendedInterpolation())
-        config.read(args.cfg)
+        server = args.server
+        login = args.login
         
-        if args.out is not None:
-            out = open(args.out, mode='w', encoding='utf-8', newline='\n')
-        else:
-            out = sys.stdout
-        
-        server = config.get('auth', 'server', fallback=None)
-        login = config.get('auth', 'login', fallback=None)
-        password = config.get('auth', 'password', fallback=None)
+        if args.cfg is not None:
+            config = configparser.ConfigParser(
+                    interpolation=configparser.ExtendedInterpolation())
+            config.read(args.cfg)
+            
+            if server is None:
+                server = config.get('auth', 'server', fallback=None)
+            
+            if login is None:
+                login = config.get('auth', 'login', fallback=None)
+            
+            password = config.get('auth', 'password', fallback=None)
         
         if server is None:
             raise UserError('\'server\' not set')
@@ -76,6 +90,11 @@ def main():
             raise UserError('\'login\' not set')
         
         if password is None:
-            raise UserError('\'password\' not set')
+            password = getpass.getpass()
         
-        print((out, server, login, password)) # TEST
+        if args.out is not None:
+            out = open(args.out, mode='w', encoding='utf-8', newline='\n')
+        else:
+            out = sys.stdout
+        
+        print((server, login, password, out)) # TEST
