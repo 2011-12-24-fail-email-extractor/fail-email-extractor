@@ -28,13 +28,6 @@ def fail_email_extractor(server, login, password,
     io_loop = tornado.ioloop.IOLoop.instance()
     
     @tornado.stack_context.wrap
-    def _on_fail_email(email):
-        # TODO ...
-        
-        if on_fail_email is not None:
-            on_fail_email(email)
-    
-    @tornado.stack_context.wrap
     def _on_email(num, data):
         parser = email.parser.BytesParser()
         headers_b = data[0][1]
@@ -46,9 +39,13 @@ def fail_email_extractor(server, login, password,
             if result:
                 return
         
-        print('_on_email(data): \n{!r}\n\n'.format(dict(headers))) # TEST
+        xfr = headers.get('X-Failed-Recipients')
         
-        # TODO ...
+        if xfr is not None:
+            for xfr_email in filter(None, map(
+                    lambda s: s.strip(), xfr.split(','))):
+                if on_fail_email is not None:
+                    on_fail_email(xfr_email)
     
     @tornado.stack_context.wrap
     def _on_final(error):
