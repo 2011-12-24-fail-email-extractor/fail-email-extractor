@@ -18,7 +18,7 @@
 assert str is not bytes
 
 import threading, functools
-import imaplib
+import imaplib, email.parser
 import tornado.ioloop, tornado.stack_context
 from .error_types import SearchEmailError, FetchEmailError
 
@@ -36,15 +36,19 @@ def fail_email_extractor(server, login, password,
     
     @tornado.stack_context.wrap
     def _on_email(num, data):
+        parser = email.parser.BytesParser()
+        headers_b = data[0][1]
+        headers = parser.parsebytes(headers_b, headersonly=True)
+        
         if on_email is not None:
-            result = on_email(num, data)
+            result = on_email(num, data, headers)
             
             if result:
                 return
         
-        headers = data[0][1]
+        print('_on_email(data): \n{!r}\n\n'.format(dict(headers))) # TEST
         
-        print('_on_email(data): \n{!r}\n\n'.format(headers)) # TEST
+        # TODO ...
     
     @tornado.stack_context.wrap
     def _on_final(error):

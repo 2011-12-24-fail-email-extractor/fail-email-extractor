@@ -106,6 +106,14 @@ def main():
             else:
                 print(email)
         
+        if filter_from is not None:
+            def on_email(num, data, headers):
+                if headers.get('From') != filter_from:
+                    return True
+        else:
+            def on_email(*args, **kwargs):
+                pass
+        
         def on_final(exit_code=None):
             io_loop.stop()
             
@@ -115,6 +123,7 @@ def main():
         fail_email_extractor(
                 server, login, password,
                 filter_from=filter_from,
+                on_email=on_email,
                 on_fail_email=on_fail_email,
                 on_final=on_final)
     
