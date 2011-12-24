@@ -90,6 +90,9 @@ def main():
                 login = config.get('auth', 'login', fallback=None)
             
             password = config.get('auth', 'password', fallback=None)
+            filter_from = config.get('filter', 'from', fallback=None)
+        else:
+            filter_from = None
         
         if server is None:
             raise UserError('\'server\' not set')
@@ -105,7 +108,9 @@ def main():
         else:
             out = sys.stdout
         
-        fail_email_extractor(server, login, password, out,
+        fail_email_extractor(
+                server, login, password, out,
+                filter_from=filter_from,
                 callback=on_final)
     
     tornado.ioloop.IOLoop.instance().start()

@@ -17,5 +17,6 @@
 
 assert str is not bytes
 
-def fail_email_extractor(server, login, password, out, callback=None):
+def fail_email_extractor(server, login, password, out,
+        filter_from=None, callback=None):
     callback()
