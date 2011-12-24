@@ -21,19 +21,8 @@ import sys, argparse, configparser, traceback
 import getpass
 import tornado.ioloop
 import tornado.stack_context
+from .error_types import UserError, ProgError
 from . import fail_email_extractor
-
-class UserError(Exception):
-    pass
-
-class ProgError(Exception):
-    pass
-
-def on_final(exit_code=None):
-    tornado.ioloop.IOLoop.instance().stop()
-    
-    if exit_code is not None:
-        exit(exit_code)
 
 def on_error(e_type, e_value, e_traceback):
     try:
@@ -49,6 +38,8 @@ def on_error(e_type, e_value, e_traceback):
         exit(1)
 
 def main():
+    io_loop = tornado.ioloop.IOLoop.instance()
+    
     with tornado.stack_context.ExceptionStackContext(on_error):
         parser = argparse.ArgumentParser(
                 description='Utility for extracting fail email-addresses')
@@ -106,11 +97,25 @@ def main():
         if args.out is not None:
             out = open(args.out, mode='w', encoding='utf-8', newline='\n')
         else:
-            out = sys.stdout
+            out = None
+        
+        def on_fail_email(email):
+            if out is not None:
+                out.write('{}\n'.format(email))
+                out.flush()
+            else:
+                print(email)
+        
+        def on_final(exit_code=None):
+            io_loop.stop()
+            
+            if exit_code is not None:
+                exit(exit_code)
         
         fail_email_extractor(
-                server, login, password, out,
+                server, login, password,
                 filter_from=filter_from,
-                callback=on_final)
+                on_fail_email=on_fail_email,
+                on_final=on_final)
     
-    tornado.ioloop.IOLoop.instance().start()
+    io_loop.start()

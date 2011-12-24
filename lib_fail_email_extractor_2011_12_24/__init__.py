@@ -17,6 +17,76 @@
 
 assert str is not bytes
 
-def fail_email_extractor(server, login, password, out,
-        filter_from=None, callback=None):
-    callback()
+import threading, functools
+import imaplib
+import tornado.ioloop, tornado.stack_context
+from .error_types import SearchEmailError, FetchEmailError
+
+def fail_email_extractor(server, login, password,
+        filter_from=None, on_email=None, on_fail_email=None,
+        on_final=None):
+    io_loop = tornado.ioloop.IOLoop.instance()
+    
+    @tornado.stack_context.wrap
+    def _on_fail_email(email):
+        # TODO ...
+        
+        if on_fail_email is not None:
+            on_fail_email(email)
+    
+    @tornado.stack_context.wrap
+    def _on_email(num, data):
+        if on_email is not None:
+            result = on_email(num, data)
+            
+            if result:
+                return
+        
+        headers = data[0][1]
+        
+        print('_on_email(data): \n{!r}\n\n'.format(headers)) # TEST
+    
+    @tornado.stack_context.wrap
+    def _on_final(error):
+        if error is not None:
+            raise error
+        
+        if on_final is not None:
+            on_final()
+    
+    def daemon():
+        error = None
+        
+        try:
+            m = imaplib.IMAP4(host=server)
+            
+            m.login(login, password)
+            try:
+                m.select(readonly=True)
+                try:
+                    typ, inbox_data = m.search(None, 'ALL')
+                    
+                    if typ != 'OK':
+                        raise SearchEmailError('Search email in inbox error') 
+                    
+                    for num in inbox_data[0].split():
+                        typ, data = m.fetch(num, '(RFC822)')
+                        
+                        if typ != 'OK':
+                            raise FetchEmailError('Fetch email error') 
+                        
+                        io_loop.add_callback(
+                            functools.partial(_on_email, num, data))
+                finally:
+                    m.close()
+            finally:
+                m.logout()
+        except Exception as e:
+            error = e
+        
+        io_loop.add_callback(
+                functools.partial(_on_final, error))
+    
+    thread = threading.Thread(target=daemon)
+    thread.daemon = True
+    thread.start()
